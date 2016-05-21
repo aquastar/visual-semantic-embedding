@@ -172,3 +172,4 @@ Ryan Kiros, Ruslan Salakhutdinov, Richard S. Zemel. **"Unifying Visual-Semantic 
 
 
 
+# visual-semantic-embedding

@@ -17,15 +17,18 @@ from scipy.linalg import norm
 from PIL import Image
 
 from PIL import ImageFile
+
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 import tools
 
-#-----------------------------------------------------------------------------#
+# -----------------------------------------------------------------------------#
 # Specify VGG-19 convnet location here
-#-----------------------------------------------------------------------------#
-path_to_vgg = '/ais/gobi3/u/rkiros/vgg/vgg19.pkl'
-#-----------------------------------------------------------------------------#
+# -----------------------------------------------------------------------------#
+path_to_vgg = '/home/czq/visual-semantic-embedding/vgg19.pkl'
+
+
+# -----------------------------------------------------------------------------#
 
 def retrieve_captions(model, net, captions, cvecs, file_name, k=5):
     """
@@ -46,14 +49,25 @@ def retrieve_captions(model, net, captions, cvecs, file_name, k=5):
     feats /= norm(feats)
 
     # Embed image into joint space
-    feats = tools.encode_images(model, feats[None,:])
+    feats = tools.encode_images(model, feats[None, :])
 
     # Compute the nearest neighbours
     scores = numpy.dot(feats, cvecs.T).flatten()
     sorted_args = numpy.argsort(scores)[::-1]
     sentences = [captions[a] for a in sorted_args[:k]]
 
-    return sentences
+    return file_name, sentences
+
+
+def retrieve_imgs(model, net, captions, cvecs, file_name, k=5):
+
+    # Compute the nearest neighbours
+    scores = numpy.dot(captions, cvecs.T).flatten()
+    sorted_args = numpy.argsort(scores)[::-1]
+    img_list = [file_name[a] for a in sorted_args[:k]]
+
+    return img_list
+
 
 def regularities(model, net, captions, imvecs, file_name, negword, posword, k=5, rerank=False):
     """
@@ -90,7 +104,7 @@ def regularities(model, net, captions, imvecs, file_name, negword, posword, k=5,
     neg = tools.encode_sentences(model, [negword], verbose=False)
 
     # Embed image
-    query = tools.encode_images(model, query[None,:])
+    query = tools.encode_images(model, query[None, :])
 
     # Transform
     feats = query - neg + pos
@@ -104,15 +118,16 @@ def regularities(model, net, captions, imvecs, file_name, negword, posword, k=5,
     # Re-rank based on the mean of the returned results
     if rerank:
         nearest = imvecs[sorted_args[:k]]
-        meanvec = numpy.mean(nearest, 0)[None,:]
+        meanvec = numpy.mean(nearest, 0)[None, :]
         scores = numpy.dot(nearest, meanvec.T).flatten()
         sargs = numpy.argsort(scores)[::-1]
         sentences = [sentences[a] for a in sargs[:k]]
         sorted_args = [sorted_args[a] for a in sargs[:k]]
 
-    return sentences, sorted_args[:k]    
+    return sentences, sorted_args[:k]
 
-def compute_fromfile(net, loc, base_path='/ais/gobi3/u/rkiros/coco/images/val2014/'):
+
+def compute_fromfile(net, loc, base_path='/home/czq/visual-semantic-embedding/img/'):
     """
     Compute image features from a text file of locations
     """
@@ -134,14 +149,15 @@ def compute_fromfile(net, loc, base_path='/ais/gobi3/u/rkiros/coco/images/val201
             ims[j] = load_image(batch[j])
         fc7 = compute_features(net, ims)
         feats[idx] = fc7
-         
+
     return feats
-    
+
+
 def load_image(file_name):
     """
     Load and preprocess an image
     """
-    MEAN_VALUE = numpy.array([103.939, 116.779, 123.68]).reshape((3,1,1))
+    MEAN_VALUE = numpy.array([103.939, 116.779, 123.68]).reshape((3, 1, 1))
     image = Image.open(file_name)
     im = numpy.array(image)
 
@@ -151,24 +167,25 @@ def load_image(file_name):
         im = numpy.repeat(im, 3, axis=2)
     h, w, _ = im.shape
     if h < w:
-        im = skimage.transform.resize(im, (256, w*256/h), preserve_range=True)
+        im = skimage.transform.resize(im, (256, w * 256 / h), preserve_range=True)
     else:
-        im = skimage.transform.resize(im, (h*256/w, 256), preserve_range=True)
+        im = skimage.transform.resize(im, (h * 256 / w, 256), preserve_range=True)
 
     # Central crop to 224x224
     h, w, _ = im.shape
-    im = im[h//2-112:h//2+112, w//2-112:w//2+112]
-    
+    im = im[h // 2 - 112:h // 2 + 112, w // 2 - 112:w // 2 + 112]
+
     rawim = numpy.copy(im).astype('uint8')
-    
+
     # Shuffle axes to c01
     im = numpy.swapaxes(numpy.swapaxes(im, 1, 2), 0, 1)
-    
+
     # Convert to BGR
     im = im[::-1, :, :]
 
     im = im - MEAN_VALUE
     return floatX(im[numpy.newaxis])
+
 
 def compute_features(net, im):
     """
@@ -176,6 +193,7 @@ def compute_features(net, im):
     """
     fc7 = numpy.array(lasagne.layers.get_output(net['fc7'], im, deterministic=True).eval())
     return fc7
+
 
 def build_convnet():
     """
@@ -216,4 +234,3 @@ def build_convnet():
     lasagne.layers.set_all_param_values(output_layer, model['param values'])
 
     return net
-

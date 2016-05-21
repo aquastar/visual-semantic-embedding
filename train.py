@@ -27,7 +27,7 @@ from tools import encode_sentences, encode_images
 from datasets import load_dataset
 
 # main trainer
-def trainer(data='coco',  #f8k, f30k, coco
+def trainer(data='f8k',  #f8k, f30k, coco
             margin=0.2,
             dim=1024,
             dim_image=4096,
@@ -40,7 +40,7 @@ def trainer(data='coco',  #f8k, f30k, coco
             maxlen_w=100,
             optimizer='adam',
             batch_size = 128,
-            saveto='/ais/gobi3/u/rkiros/uvsmodels/coco.npz',
+            saveto='./data/f8k/x.npz',
             validFreq=100,
             lrate=0.0002,
             reload_=False):
@@ -220,5 +220,5 @@ def trainer(data='coco',  #f8k, f30k, coco
         print 'Seen %d samples'%n_samples
 
 if __name__ == '__main__':
-    pass
+    trainer()
 
